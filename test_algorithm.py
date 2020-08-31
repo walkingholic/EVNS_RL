@@ -923,6 +923,77 @@ def get_feature_state_fleet(cur_time, pev, CS_list, graph, ncandi):
     return info
 
 
+
+
+
+def get_greedy_fleet(request_be_EV, CS_list, graph):
+
+
+    for pev in request_be_EV:
+
+        # charging_energy = pev.maxBCAPA * (pev.req_SOC - pev.curr_SOC)
+        # charging_duration = (charging_energy / (60 * pev.charging_effi))
+        # pev.ept_charging_duration = charging_duration * 60
+
+        # print('=====================================================================')
+        # print('be ID:{0:3} S:{1:3} D:{2:3} CurSOC:{3:0.2f} ReqSOC:{4:0.2f} Tstart:{5:0.2f} Tarr:{6:0.2f}'
+        #       .format(pev.id, pev.source, pev.destination, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime))
+        candi = []
+        candi = get_feature_state_fleet(pev.t_start, pev, CS_list, graph, 0)
+
+        # for cs, _, _, _, _, _, _, _, _, _, _, eptWT, ept_charduration, _, _, ept_arrtime in candi:
+        #     print('ID: {0:3}  eptWT: {1:.2f}   eptCharduration: {3:.2f}   Len_reserv: {2:.2f}'.format(cs.id, eptWT, len(
+        #         cs.reserve_ev), ept_charduration))
+
+        candi.sort(key=lambda e: e[1])
+
+        (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance, ept_front_d_time,
+         ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
+         ept_home_charging_cost,
+         ept_arrtime) = candi[0]
+
+        pev.front_path = front_path
+        pev.rear_path = rear_path
+        pev.path = front_path + rear_path[1:]
+        pev.ept_arrtime = ept_arrtime
+        pev.true_arrtime = get_true_arrtime(pev, cs, graph)
+        pev.ept_waitingtime = ept_WT
+        pev.ept_charging_duration = ept_charduration
+        pev.cs = cs
+        pev.cschargingprice = cs.price[int(pev.cschargingstarttime / 5)]
+        cs.recieve_request(pev)
+
+    for cs in CS_list:
+        cs.sim_finish(graph)
+        print('=====================================================================')
+
+    tot_wt = 0
+    tot_cost = 0
+    for pev in request_be_EV:
+        # print(
+        #     'result,  ID: {0:3},  CSID: {1:3},  CurSOC: {2:.2f},  ReqSOC: {3:.2f},  Tstart: {4:5.2f},  EptTarr: {5:5.2f},  TruTarr: {10:5.2f},  diffTarr: {11:5.2f},  WT: {6:5.2f},  eptWT: {8:5.2f},  diffWT: {9:5.2f},  ChaStart: {7:5.2f},  finTime: {12:5.2f}'
+        #     .format(pev.id, pev.cs.id, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime, pev.true_waitingtime,
+        #             pev.cschargingstarttime, pev.ept_waitingtime, pev.time_diff_WT, pev.true_arrtime,
+        #             pev.true_arrtime - pev.ept_arrtime, pev.curr_time))
+        tot_wt += pev.true_waitingtime
+        tot_cost += pev.totalcost
+
+    print('Avg. total waiting time: ', tot_wt / len(request_be_EV))
+    print('Total cost: ', tot_cost)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def get_feature_state_jeju(sim_time, pev, CS_list, graph, ncandi):
 
     evcango = pev.curr_SOC * pev.maxBCAPA / pev.ECRate

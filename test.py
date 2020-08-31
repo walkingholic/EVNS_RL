@@ -5,8 +5,8 @@ from dqn_v06_EV_fleet import EV,CS
 # from dqn_v03 import Env
 import matplotlib.pyplot as plt
 import datetime
-import gurobipy as gp
-from gurobipy import GRB, Model, quicksum
+# import gurobipy as gp
+# from gurobipy import GRB, Model, quicksum
 from Graph import Graph_simple_39
 import test_algorithm as ta
 

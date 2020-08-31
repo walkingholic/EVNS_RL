@@ -30,7 +30,7 @@ from Graph import Graph_simple_39
 
 
 EPISODES = 2000
-N_REQ = 100
+N_REQ = 150
 EPS_DC = 0.9994
 UNITtimecost = 8
 ECRate = 0.16
@@ -172,37 +172,105 @@ class CS:
     def get_ept_avail_time(self, ept_arrtime): # 예상 정보를 가지고
         self.reserve_ev.sort(key=lambda element: element[1])
         tmp_rsv = copy.deepcopy(self.reserve_ev)
-        tmp_wtev = []
+        tmp_wtev_list = []
+        ept_extedWT_list = []
         for rev, eptTarr,_ in tmp_rsv:
             # print('CS ID:',self.id, 'reseved ev:', rev.id, 'eptTarr:', eptTarr,'TruTarr:', rev.true_arrtime)
             if eptTarr <= ept_arrtime:
-                tmp_wtev.append((rev, eptTarr))
-            # else:
-            #     print('need to recalculate for charged WT')
+                tmp_wtev_list.append((rev, eptTarr))
+            else:
+                # print('need to recalculate for charged WT')
+                ept_extedWT_list.append((rev, eptTarr))
 
-        tmp_wtev.sort(key=lambda e:e[1])
+        tmp_wtev_list.sort(key=lambda e:e[1])
 
         tmp_atime = []
         for cp in self.cplist:
             tmp_atime.append(cp.avail_time)
 
-        for i, tp_wev in enumerate(tmp_wtev):
+        for i, tp_wev in enumerate(tmp_wtev_list):
             tmp_atime.sort()
             at = tmp_atime[0]
             wev, eptTarr = tp_wev
             if at < wev.ept_arrtime:
                 eptWT = 0.0
-                wev.eptcschargingstarttime = wev.ept_arrtime + eptWT
+                # wev.eptcschargingstarttime = wev.ept_arrtime + eptWT
                 at = wev.ept_arrtime + wev.ept_charging_duration
             else:
                 eptWT = at - wev.ept_arrtime
-                cschargingstarttime = at
+                # wev.eptcschargingstarttime = wev.ept_arrtime + eptWT
                 at = at + wev.ept_charging_duration
             tmp_atime[0] = at
+
+
+        # tmp_exted_atime = copy.deepcopy(tmp_atime)
+        # for i, te_wev in enumerate(ept_extedWT_list):
+        #     tmp_exted_atime.sort()
+        #     at = tmp_exted_atime[0]
+        #     wev, eptTarr = te_wev
+        #     if at < wev.ept_arrtime:
+        #         eptWT = 0.0
+        #         eptChstart = wev.ept_arrtime + eptWT
+        #         wev.eptcschargingstarttime = wev.ept_arrtime + eptWT
+        #         at = wev.ept_arrtime + wev.ept_charging_duration
+        #     else:
+        #         eptWT = at - wev.ept_arrtime
+        #         eptChstart = wev.ept_arrtime + eptWT
+        #         wev.eptcschargingstarttime = wev.ept_arrtime + eptWT
+        #         at = at + wev.ept_charging_duration
+        #     tmp_exted_atime[0] = at
+
+
+
         return tmp_atime
 
     def recieve_request(self, ev):
         self.reserve_ev.append((ev, ev.ept_arrtime, ev.true_arrtime))
+
+        self.reserve_ev.sort(key=lambda e:e[1])
+
+        tmp_wtev_list = []
+        ept_extedWT_list = []
+
+        for rev, eptTarr, _ in self.reserve_ev:
+            # print('CS ID:',self.id, 'reseved ev:', rev.id, 'eptTarr:', eptTarr,'TruTarr:', rev.true_arrtime)
+            if eptTarr <= ev.ept_arrtime:
+                tmp_wtev_list.append((rev, eptTarr))
+            else:
+                # print('need to recalculate for charged WT')
+                ept_extedWT_list.append((rev, eptTarr))
+
+        diff_ch_start = []
+        tmp_atime = []
+        for cp in self.cplist:
+            tmp_atime.append(cp.avail_time)
+
+        for i, (wev, _, _) in enumerate(self.reserve_ev):
+            tmp_atime.sort()
+            at = tmp_atime[0]
+
+            if at < wev.ept_arrtime:
+                eptWT = 0.0
+                ept_ch_start = wev.ept_arrtime + eptWT
+                diff = ept_ch_start - wev.eptcschargingstarttime
+                diff_ch_start.append(diff)
+                # wev.eptcschargingstarttime = ept_ch_start
+                at = wev.ept_arrtime + wev.ept_charging_duration
+            else:
+                eptWT = at - wev.ept_arrtime
+                ept_ch_start = wev.ept_arrtime + eptWT
+                diff = ept_ch_start - wev.eptcschargingstarttime
+                diff_ch_start.append(diff)
+                # wev.eptcschargingstarttime = ept_ch_start
+                at = at + wev.ept_charging_duration
+            tmp_atime[0] = at
+
+        # for i, (rev, _, _) in enumerate(self.reserve_ev):
+        #     print(ev.curr_time, rev.id, diff_ch_start[i])
+
+        return sum(diff_ch_start)
+
+
 
     def sim_finish(self, graph):
         self.update_avail_time(3000, graph)
@@ -212,22 +280,7 @@ class CS:
         self.reserve_ev.sort(key=lambda element: element[1])
         self.update_avail_time(cur_time, graph)
         at_list = self.get_ept_avail_time(ept_arrtime)  # charging finish time for ev being charged
-        # print(at_list)
-        # for iev, iev_ept_at in self.reserve_ev: # not yet arrived, just reserve..
-        #     at_list.sort()
-        #     minAT = at_list[0]
-        #     if iev_ept_at <= ept_arrtime:
-        #         if minAT < iev_ept_at:
-        #             newAT = iev_ept_at + iev.ept_charging_duration
-        #         else:
-        #             newAT = minAT + iev.ept_charging_duration
-        #         at_list[0] = newAT
-        #     else:
-        #         print('need to recalculate for charged WT', iev.id, iev.ept_waitingtime)
-        # at_list.sort()
-        # minAT = at_list[0]
-        # print(at_list)
-        # print('ev.id: {1:0.2f} | minAT: {0:0.2f} | ev.ept_arrtime: {2:0.2f} | ev.ept_charging_duration: {3:0.2f}'.format(minAT, ev.id, ev.ept_arrtime, ev.ept_charging_duration))
+
         at_list.sort()
         minAT = at_list[0]
         if minAT > ept_arrtime:
@@ -529,22 +582,13 @@ class Env:
         self.CS_list = reset_CS_info(self.graph)
 
 
-    def init_request(self):
-        self.request_time = np.random.uniform(360, 1200, self.num_request) # 06:00 ~ 20:00
-        self.request_time.sort()
 
-        for i in range(self.num_request):
-            s = self.source_node_list[np.random.randint(0, len(self.source_node_list) - 1)]
-            d = self.destination_node_list[np.random.randint(0, len(self.destination_node_list) - 1)]
-            soc = np.random.uniform(0.2, 0.4)
-            req_soc = np.random.uniform(0.7, 0.9)
-            t_start = self.request_time[i]
-            self.request_be_EV.append(EV(i, s, d, soc, req_soc, t_start))
+
 
     def reset(self):
         # self.graph.reset_traffic_info()
         self.CS_list = reset_CS_info(self.graph)
-        self.init_request()
+        self.request_be_EV = init_request(self.num_request, self.graph)
 
 
         self.pev = self.request_be_EV[0]
@@ -564,32 +608,42 @@ class Env:
              ept_front_d_time,
              ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
              ept_home_charging_cost, ept_arrtime) = path
-            state += [ept_WT/60, ept_charduration/60, ept_driving_cost/10, ept_cs_charging_cost/10]
+
+            for cp in cs.cplist:
+                state += [(cp.avail_time-self.pev.curr_time)/60]
+            # state += [ept_WT/60, ept_charduration/60, ept_driving_cost/10, ept_cs_charging_cost/10]
         state = np.reshape(state, [1, self.state_size])
 
         return state
-    #
-    # def test_reset(self, pev, graph, CS_list):
-    #     self.graph = graph
-    #     self.path_info = []
-    #     self.CS_list = CS_list
-    #     self.pev = pev
-    #     self.sim_time = self.pev.t_start
-    #     self.timeIDX = int(self.sim_time / 5)
-    #     self.path_info = ta.get_feature_state_fleet(self.sim_time, self.pev, self.CS_list, self.graph, NCS)
-    #     self.pev.path.append(self.pev.curr_location)
-    #
-    #     state = [self.pev.curr_location / self.graph.num_node, self.pev.destination / self.graph.num_node,
-    #              self.pev.curr_SOC, (self.sim_time/288)/288]
-    #     for path in self.path_info:
-    #         (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance,
-    #          ept_front_d_time,
-    #          ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
-    #          ept_home_charging_cost, ept_arrtime)= path
-    #         state += [ept_WT, ept_charduration, ept_driving_cost/10, ept_cs_charging_cost/10]
-    #     state = np.reshape(state, [1, self.state_size])
-    #
-    #     return state, self.pev.source, self.pev.destination
+
+    def test_reset(self, EV_list, CS_list, graph):
+
+        self.CS_list = CS_list
+        self.request_be_EV = EV_list
+        self.graph = graph
+
+        self.pev = self.request_be_EV[0]
+        self.path_info = []
+        self.sim_time = self.pev.t_start
+        self.timeIDX = int(self.sim_time / 5)
+
+        self.path_info = ta.get_feature_state_fleet(self.sim_time, self.pev, self.CS_list, self.graph, NCS)
+
+        state = [self.pev.curr_location / self.graph.num_node, self.pev.destination / self.graph.num_node,
+                 self.pev.curr_SOC, (self.pev.t_start / 288) / 288]
+
+        for path in self.path_info:
+            (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance,
+             ept_front_d_time,
+             ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
+             ept_home_charging_cost, ept_arrtime) = path
+
+            for cp in cs.cplist:
+                state += [(cp.avail_time - self.pev.curr_time) / 60]
+            # state += [ept_WT / 60, ept_charduration / 60, ept_driving_cost / 10, ept_cs_charging_cost / 10]
+        state = np.reshape(state, [1, self.state_size])
+
+        return state
 
 
     def step(self, action):
@@ -598,19 +652,20 @@ class Env:
          ept_home_charging_cost, ept_arrtime) = self.path_info[action]
 
         pev = self.pev
-        # print(pev.id)
         pev.front_path = front_path
         pev.rear_path = rear_path
         pev.path = front_path + rear_path[1:]
         pev.ept_arrtime = ept_arrtime
         pev.true_arrtime = ta.get_true_arrtime(pev, cs, self.graph)
         pev.ept_waitingtime = ept_WT
+        pev.eptcschargingstarttime = pev.ept_arrtime + ept_WT
         pev.ept_charging_duration = ept_charduration
         pev.cs = cs
-        cs.recieve_request(pev)
+        diff_ch = cs.recieve_request(pev)
 
-        # reward = -weight/100
-        reward = -pev.ept_waitingtime/10
+        # reward = diff_ch
+        reward = -weight
+        # reward = -pev.ept_waitingtime/10
         done = 0
 
         if pev.id+1<N_REQ:
@@ -620,13 +675,18 @@ class Env:
                           next_pev.destination / self.graph.num_node, next_pev.curr_SOC, (next_pev.t_start/288)/288]
             for path in self.path_info:
                 (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance,
-                 ept_front_d_time,
-                 ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
-                 ept_home_charging_cost, ept_arrtime) = path
-                next_state += [ept_WT/60, ept_charduration/60, ept_driving_cost/10, ept_cs_charging_cost/10]
+                 ept_front_d_time, ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration,
+                 ept_cs_charging_cost, ept_home_charging_cost, ept_arrtime) = path
+
+                for cp in cs.cplist:
+                    next_state += [(cp.avail_time-pev.curr_time)/60]
+
+                # next_state += [ept_WT/60, ept_charduration/60, ept_driving_cost/10, ept_cs_charging_cost/10]
             next_state = np.reshape(next_state, [1, self.state_size])
             return next_state, next_pev, reward, done
+
         else:
+
             for cs in self.CS_list:
                 cs.sim_finish(self.graph)
             tot_wt = 0
@@ -635,41 +695,34 @@ class Env:
                 tot_wt += pev.true_waitingtime
                 tot_cost += pev.totalcost
             done = 1
-            reward = -(tot_wt/N_REQ)
+            reward = -(tot_cost/len(self.request_be_EV))
             return np.zeros((1, self.state_size)), -1, reward, done
 
+def init_request(num_request, graph):
+    request_be_EV = []
 
-def gen_test_envir_simple(num_evs, graph):
+    source_node_list = list(graph.source_node_set)
+    destination_node_list = list(graph.destination_node_set)
+
+    request_time = np.random.uniform(360, 1200, num_request)  # 06:00 ~ 20:00
+    request_time.sort()
+
+    for i in range(num_request):
+        s = source_node_list[np.random.randint(0, len(source_node_list) - 1)]
+        d = destination_node_list[np.random.randint(0, len(destination_node_list) - 1)]
+        soc = np.random.uniform(0.2, 0.4)
+        req_soc = np.random.uniform(0.7, 0.9)
+        t_start = request_time[i]
+        request_be_EV.append(EV(i, s, d, soc, req_soc, t_start))
+
+    return request_be_EV
+
+
+def gen_test_envir_simple(graph):
 
     graph.reset_traffic_info()
-
-    EV_list = []
-
-    for e in range(num_evs):
-
-        t_start, soc = default_setting_random_value()
-        # CS_list = []
-        CS_list = reset_CS_info(graph)
-        # for l in graph.cs_info:
-        #     # print('gen cs', l)
-        #     # alpha = np.random.uniform(0.03, 0.07)
-        #     cs = CS(l, graph.cs_info[l]['long'], graph.cs_info[l]['lat'])
-        #     CS_list.append(cs)
-
-        source_node_list = list(graph.source_node_set)
-        destination_node_list = list(graph.destination_node_set)
-
-        source = source_node_list[np.random.randint(0, len(source_node_list) - 1)]
-        destination = destination_node_list[np.random.randint(0, len(destination_node_list) - 1)]
-
-        while source==destination or destination in graph.cs_info:
-            destination = destination_node_list[np.random.randint(0, len(destination_node_list) - 1)]
-
-
-        ev = EV(e, t_start, soc, source, destination)
-        EV_list.append(ev)
-
-
+    CS_list = reset_CS_info(graph)
+    EV_list = init_request()
 
     return EV_list, CS_list, graph
 
@@ -677,25 +730,20 @@ def test_dqn(EV_list_DQN_REF, CS_list_DQN_REF, graph, env, agent ):
 
     agent.epsilon = 0
     episcore = 0
-    for e, pev in enumerate(EV_list_DQN_REF):
-        done = False
-        score = 0
+    done = False
+    state = env.test_reset(EV_list_DQN_REF, CS_list_DQN_REF, graph)
+    print("\nEpi:", e, agent.epsilon)
 
-        state, source, destination = env.test_reset(pev, graph, CS_list_DQN_REF)
-        print("\nEpi:", e, agent.epsilon)
-        print(source,'->', destination)
-        # print('sim time:', env.sim_time)
 
-        while not done:
-            action = agent.get_action(state)
-            next_state, next_node, reward, done = env.step(action)
-            score += reward
-            state = next_state
+    while not done:
+        action = agent.get_action(state)
+        next_state, next_node, reward, done = env.step(action)
 
-            episcore += reward
+        state = next_state
+        env.pev = next_pev
 
-        print('charged: ',pev.charged)
-    # print('episcore: ', episcore)
+
+
 
 
 
@@ -714,7 +762,7 @@ if __name__ == "__main__":
     graph_test = Graph_simple_39()
 
     action_size = len(graph_train.cs_info)
-    state_size = action_size*4+4
+    state_size = action_size*2+4
 
     print('S:{} A:{}'.format(state_size, action_size))
 
@@ -810,36 +858,47 @@ if __name__ == "__main__":
 ###############################  performance evaluation  #############
 
     # graph_test = Graph_jeju('data/20191001_5Min_modified.csv')
-    # graph_test = Graph_simple_39()
+    graph_test = Graph_simple_39()
+
+    testagent = DQNAgent(state_size, action_size, True)
+
+    print(N_SOC, len(graph_test.cs_info), action_size, state_size)
+    for i in range(1):
+
+        npev = 1000
+        EV_list, CS_list, graph_test = gen_test_envir_simple(graph_test)
+        # graph = graph_train
+
+        env = Env(graph_test, state_size, action_size)
+
+        EV_list_DQN_REF = copy.deepcopy(EV_list)
+        CS_list_DQN_REF = copy.deepcopy(CS_list)
+        test_dqn(EV_list_DQN_REF, CS_list_DQN_REF, graph_test, env, testagent)
 
 
-    # action_size = len(graph_test.cs_info) * N_SOC
-    # state_size = action_size * 5 + 3
-    #
-    # testagent = DQNAgent(state_size, action_size, True)
-    #
-    # print(N_SOC, len(graph_test.cs_info), action_size, state_size)
-    # for i in range(10):
-    #
-    #     npev = 1000
-    #     EV_list, CS_list, graph_test = gen_test_envir_simple(npev, graph_test)
-    #     # graph = graph_train
-    #
-    #     env = Env(graph_test, state_size, action_size)
-    #
-    #     EV_list_DQN_REF = copy.deepcopy(EV_list)
-    #     CS_list_DQN_REF = copy.deepcopy(CS_list)
-    #     test_dqn(EV_list_DQN_REF, CS_list_DQN_REF, graph_test, env, testagent)
-    #
-    #
-    #     EV_list_Greedy = copy.deepcopy(EV_list)
-    #     CS_list_Greedy = copy.deepcopy(CS_list)
-    #     ta.greedy_total_cost_search(EV_list_Greedy, CS_list_Greedy, graph_test)
-    #
-    #     EV_list_Greedy_short = copy.deepcopy(EV_list)
-    #     CS_list_Greedy_short = copy.deepcopy(CS_list)
-    #     ta.greedy_shortest_search(EV_list_Greedy_short, CS_list_Greedy_short, graph_test)
-    #
-    #
-    #     # ta.sim_result_text_ref(i, CS_list, graph, resultdir, EV_list_DQN_REF=EV_list_DQN_REF, EV_list_Astar_ref=EV_list_Astar_ref, EV_list_Astar_shortest=EV_list_Astar_shortest)
-    #     ta.sim_result_text_last(i, CS_list, graph_test, resultdir, EV_list_DQN_REF=EV_list_DQN_REF, EV_list_Greedy=EV_list_Greedy, EV_list_Greedy_short=EV_list_Greedy_short)
+        EV_list_Greedy = copy.deepcopy(EV_list)
+        CS_list_Greedy = copy.deepcopy(CS_list)
+        ta.get_greedy_fleet(EV_list_Greedy, CS_list_Greedy, graph_test)
+
+        tot_wt = 0
+        tot_cost = 0
+        for pev in EV_list_DQN_REF:
+            tot_wt += pev.true_waitingtime
+            tot_cost += pev.totalcost
+        print('==========DQN===================')
+        print('Avg. total waiting time: ', tot_wt / len(EV_list_DQN_REF))
+        print('Total cost: ', tot_cost)
+
+        tot_wt = 0
+        tot_cost = 0
+        for pev in EV_list_Greedy:
+            tot_wt += pev.true_waitingtime
+            tot_cost += pev.totalcost
+        print('==========EV_list_Greedy===================')
+        print('Avg. total waiting time: ', tot_wt / len(EV_list_Greedy))
+        print('Total cost: ', tot_cost)
+
+
+
+        # ta.sim_result_text_ref(i, CS_list, graph, resultdir, EV_list_DQN_REF=EV_list_DQN_REF, EV_list_Astar_ref=EV_list_Astar_ref, EV_list_Astar_shortest=EV_list_Astar_shortest)
+        # ta.sim_result_text_last(i, CS_list, graph_test, resultdir, EV_list_DQN_REF=EV_list_DQN_REF, EV_list_Greedy=EV_list_Greedy, EV_list_Greedy_short=EV_list_Greedy_short)
