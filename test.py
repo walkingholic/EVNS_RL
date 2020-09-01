@@ -1,6 +1,8 @@
 import numpy as np
 import random as rnd
-from dqn_v06_EV_fleet import EV,CS
+from dqn_v06_EV_fleet import EV,CS, Env
+
+import dqn_v06_EV_fleet as dqn
 
 # from dqn_v03 import Env
 import matplotlib.pyplot as plt
@@ -9,92 +11,151 @@ import datetime
 # from gurobipy import GRB, Model, quicksum
 from Graph import Graph_simple_39
 from Graph import Graph_jejusi
-
+import copy
+import os
+import datetime
 import test_algorithm as ta
 
+
+
+
+
+now_start = datetime.datetime.now()
+resultdir = '{0:02}-{1:02} {2:02}-{3:02} {4:02}'.format(now_start.month, now_start.day, now_start.hour, now_start.minute, now_start.second)
+basepath = os.getcwd()
+dirpath = os.path.join(basepath, resultdir)
+ta.createFolder(dirpath)
+
+for i in range(2):
+
+    graph_test = Graph_jejusi()
+    npev = 300
+    EV_list, CS_list, graph_test = dqn.gen_test_envir_simple(npev, graph_test)
+    # graph = graph_train
+
+
+    EV_list_Greedy = copy.deepcopy(EV_list)
+    CS_list_Greedy = copy.deepcopy(CS_list)
+    ta.get_greedy_time_cost_fleet(EV_list_Greedy, CS_list_Greedy, graph_test)
+
+
+    tot_wt = 0
+    tot_cost = 0
+    for pev in EV_list_Greedy:
+        tot_wt += pev.true_waitingtime
+        tot_cost += pev.totalcost
+    print('==========EV_list_Greedy===================')
+    print('Avg. total waiting time: ', tot_wt / len(EV_list_Greedy))
+    print('Total cost: ', tot_cost)
+
+
+    EV_list_short_Greedy = copy.deepcopy(EV_list)
+    CS_list_short_Greedy = copy.deepcopy(CS_list)
+    ta.get_greedy_shortest_fleet(EV_list_short_Greedy, CS_list_short_Greedy, graph_test)
+
+
+    tot_wt = 0
+    tot_cost = 0
+    for pev in EV_list_short_Greedy:
+        tot_wt += pev.true_waitingtime
+        tot_cost += pev.totalcost
+    print('==========EV_list_Greedy===================')
+    print('Avg. total waiting time: ', tot_wt / len(EV_list_short_Greedy))
+    print('Total cost: ', tot_cost)
+
+
+
+    ta.sim_result_text_fleet(i, CS_list, graph_test, resultdir, EV_list_Greedy=EV_list_Greedy, EV_list_short_Greedy=EV_list_short_Greedy)
+
+
+
+
+
+
+
+
+
+
+
+
 #
-# TOU_price = [0.1736, 0.1601, 0.1748, 0.174, 0.1724, 0.1735, 0.1601, 0.1736, 0.1321, 0.1618, 0.1616, 0.1650,
-#                           0.161, 0.1635, 0.1650, 0.1633, 0.1749, 0.1808, 0.1808, 0.1753, 0.1739, 0.1717, 0.1823, 0.1786]
-# # for i in range(288):
-# p = np.random.normal(TOU_price[0], 0.20 * TOU_price[0], 10)
+#
+# num_request = 150
+# request_be_EV = []
+# request_ing_EV = []
+# charging = []
+#
+# graph = Graph_jejusi()
+# arr_time = np.random.uniform(360, 1200, num_request)
+# arr_time.sort()
+#
+# for i in range(num_request):
+#     s = np.random.randint(1, 40)
+#     d =  np.random.randint(1, 40)
+#     soc = np.random.uniform(0.2, 0.4)
+#     req_soc = np.random.uniform(0.7, 0.9)
+#     t_start = arr_time[i]
+#     request_be_EV.append(EV(i, s, d, soc, req_soc, t_start))
+#
+# CS_list = []
+# profit = np.random.uniform(0.7, 1.3, len(graph.cs_info))
+#
+# for i, l in enumerate(graph.cs_info):
+#     cs = CS(l, profit[i], graph.cs_info[l]['long'], graph.cs_info[l]['lat'])
+#     CS_list.append(cs)
 #
 #
-# print(p)
+# # CS_list=CS_list[:1]
+# for pev in request_be_EV:
+#     # charging_energy = pev.maxBCAPA * (pev.req_SOC - pev.curr_SOC)
+#     # charging_duration = (charging_energy / (60 * pev.charging_effi))
+#     # pev.ept_charging_duration = charging_duration * 60
+#
+#     print('=====================================================================')
+#     print('be ID:{0:3} S:{1:3} D:{2:3} CurSOC:{3:0.2f} ReqSOC:{4:0.2f} Tstart:{5:0.2f} Tarr:{6:0.2f}'
+#           .format(pev.id, pev.source, pev.destination, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime))
+#     candi=[]
+#     candi = ta.get_feature_state_fleet(pev.t_start, pev, CS_list, graph, 0)
+#
+#     for cs,_,_,_,_,_,_,_,_,_,_,eptWT,ept_charduration,_,_,ept_arrtime in candi:
+#         print('ID: {0:3}  eptWT: {1:.2f}   eptCharduration: {3:.2f}   Len_reserv: {2:.2f}'.format(cs.id, eptWT, len(cs.reserve_ev), ept_charduration))
+#
+#     candi.sort(key=lambda e: e[1])
+#
+#     (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance,ept_front_d_time,
+#      ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost, ept_home_charging_cost,
+#      ept_arrtime )= candi[0]
+#
+#     pev.front_path = front_path
+#     pev.rear_path = rear_path
+#     pev.path = front_path + rear_path[1:]
+#     pev.ept_arrtime = ept_arrtime
+#     pev.true_arrtime = ta.get_true_arrtime(pev, cs, graph)
+#     pev.ept_waitingtime = ept_WT
+#     pev.ept_charging_duration = ept_charduration
+#     pev.cs = cs
+#     pev.cschargingprice = cs.price[int(pev.cschargingstarttime/5)]
+#     cs.recieve_request(pev)
+#
+#
+# for cs in CS_list:
+#     cs.sim_finish(graph)
+#     print('=====================================================================')
+#
+# tot_wt = 0
+# tot_cost=0
+# for pev in request_be_EV:
+#     print('result,  ID: {0:3},  CSID: {1:3},  CurSOC: {2:.2f},  ReqSOC: {3:.2f},  Tstart: {4:5.2f},  EptTarr: {5:5.2f},  TruTarr: {10:5.2f},  diffTarr: {11:5.2f},  WT: {6:5.2f},  eptWT: {8:5.2f},  diffWT: {9:5.2f},  ChaStart: {7:5.2f},  finTime: {12:5.2f}'
+#           .format(pev.id, pev.cs.id, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime, pev.true_waitingtime, pev.cschargingstarttime, pev.ept_waitingtime, pev.time_diff_WT, pev.true_arrtime, pev.true_arrtime-pev.ept_arrtime, pev.curr_time))
+#     tot_wt += pev.true_waitingtime
+#     tot_cost+= pev.totalcost
+#
+# print('Avg. total waiting time: ', tot_wt/num_request)
+# print('Total cost: ', tot_cost)
 
 
 
-num_request = 150
-request_be_EV = []
-request_ing_EV = []
-charging = []
 
-graph = Graph_jejusi()
-arr_time = np.random.uniform(360, 1200, num_request)
-arr_time.sort()
-
-for i in range(num_request):
-    s = np.random.randint(1, 40)
-    d =  np.random.randint(1, 40)
-    soc = np.random.uniform(0.2, 0.4)
-    req_soc = np.random.uniform(0.7, 0.9)
-    t_start = arr_time[i]
-    request_be_EV.append(EV(i, s, d, soc, req_soc, t_start))
-
-CS_list = []
-profit = np.random.uniform(0.7, 1.3, len(graph.cs_info))
-
-for i, l in enumerate(graph.cs_info):
-    cs = CS(l, profit[i], graph.cs_info[l]['long'], graph.cs_info[l]['lat'])
-    CS_list.append(cs)
-
-
-# CS_list=CS_list[:1]
-for pev in request_be_EV:
-    # charging_energy = pev.maxBCAPA * (pev.req_SOC - pev.curr_SOC)
-    # charging_duration = (charging_energy / (60 * pev.charging_effi))
-    # pev.ept_charging_duration = charging_duration * 60
-
-    print('=====================================================================')
-    print('be ID:{0:3} S:{1:3} D:{2:3} CurSOC:{3:0.2f} ReqSOC:{4:0.2f} Tstart:{5:0.2f} Tarr:{6:0.2f}'
-          .format(pev.id, pev.source, pev.destination, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime))
-    candi=[]
-    candi = ta.get_feature_state_fleet(pev.t_start, pev, CS_list, graph, 0)
-
-    for cs,_,_,_,_,_,_,_,_,_,_,eptWT,ept_charduration,_,_,ept_arrtime in candi:
-        print('ID: {0:3}  eptWT: {1:.2f}   eptCharduration: {3:.2f}   Len_reserv: {2:.2f}'.format(cs.id, eptWT, len(cs.reserve_ev), ept_charduration))
-
-    candi.sort(key=lambda e: e[1])
-
-    (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance,ept_front_d_time,
-     ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost, ept_home_charging_cost,
-     ept_arrtime )= candi[0]
-
-    pev.front_path = front_path
-    pev.rear_path = rear_path
-    pev.path = front_path + rear_path[1:]
-    pev.ept_arrtime = ept_arrtime
-    pev.true_arrtime = ta.get_true_arrtime(pev, cs, graph)
-    pev.ept_waitingtime = ept_WT
-    pev.ept_charging_duration = ept_charduration
-    pev.cs = cs
-    pev.cschargingprice = cs.price[int(pev.cschargingstarttime/5)]
-    cs.recieve_request(pev)
-
-
-for cs in CS_list:
-    cs.sim_finish(graph)
-    print('=====================================================================')
-
-tot_wt = 0
-tot_cost=0
-for pev in request_be_EV:
-    print('result,  ID: {0:3},  CSID: {1:3},  CurSOC: {2:.2f},  ReqSOC: {3:.2f},  Tstart: {4:5.2f},  EptTarr: {5:5.2f},  TruTarr: {10:5.2f},  diffTarr: {11:5.2f},  WT: {6:5.2f},  eptWT: {8:5.2f},  diffWT: {9:5.2f},  ChaStart: {7:5.2f},  finTime: {12:5.2f}'
-          .format(pev.id, pev.cs.id, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime, pev.true_waitingtime, pev.cschargingstarttime, pev.ept_waitingtime, pev.time_diff_WT, pev.true_arrtime, pev.true_arrtime-pev.ept_arrtime, pev.curr_time))
-    tot_wt += pev.true_waitingtime
-    tot_cost+= pev.totalcost
-
-print('Avg. total waiting time: ', tot_wt/num_request)
-print('Total cost: ', tot_cost)
 
 # for cs in CS_list:
 #     for cp in cs.cplist:

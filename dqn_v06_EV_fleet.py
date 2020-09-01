@@ -87,6 +87,7 @@ class CPOLE:
         charging_duration = (charging_energy/(self.chargingpower * ev.charging_effi))
         ev.cscharingenergy = charging_energy
         ev.true_charging_duration = charging_duration*60
+        ev.cschargingtime = charging_duration*60
 
         self.charging_ev.append(ev)
         self.curr_charging_ev = ev
@@ -719,11 +720,11 @@ def init_request(num_request, graph):
     return request_be_EV
 
 
-def gen_test_envir_simple(graph):
+def gen_test_envir_simple(num_req, graph):
 
     graph.reset_traffic_info()
     CS_list = reset_CS_info(graph)
-    EV_list = init_request()
+    EV_list = init_request(num_req, graph)
 
     return EV_list, CS_list, graph
 
@@ -859,7 +860,7 @@ if __name__ == "__main__":
 ###############################  performance evaluation  #############
 
     # graph_test = Graph_jeju('data/20191001_5Min_modified.csv')
-    graph_test = Graph_simple_39()
+    # graph_test = Graph_simple_39()
 
     testagent = DQNAgent(state_size, action_size, True)
 
@@ -867,7 +868,7 @@ if __name__ == "__main__":
     for i in range(1):
 
         npev = 1000
-        EV_list, CS_list, graph_test = gen_test_envir_simple(graph_test)
+        EV_list, CS_list, graph_test = gen_test_envir_simple(npev, graph_test)
         # graph = graph_train
 
         env = Env(graph_test, state_size, action_size)
@@ -879,7 +880,7 @@ if __name__ == "__main__":
 
         EV_list_Greedy = copy.deepcopy(EV_list)
         CS_list_Greedy = copy.deepcopy(CS_list)
-        ta.get_greedy_fleet(EV_list_Greedy, CS_list_Greedy, graph_test)
+        ta.get_greedy_time_cost_fleet(EV_list_Greedy, CS_list_Greedy, graph_test)
 
         tot_wt = 0
         tot_cost = 0
