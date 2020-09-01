@@ -50,7 +50,6 @@ for i, l in enumerate(graph.cs_info):
 
 # CS_list=CS_list[:1]
 for pev in request_be_EV:
-
     # charging_energy = pev.maxBCAPA * (pev.req_SOC - pev.curr_SOC)
     # charging_duration = (charging_energy / (60 * pev.charging_effi))
     # pev.ept_charging_duration = charging_duration * 60
