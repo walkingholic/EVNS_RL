@@ -24,6 +24,7 @@ from time import time
 # from Graph import Graph_simple
 from Graph import Graph_simple_100
 from Graph import Graph_jeju
+from Graph import Graph_jejusi
 from Graph import Graph_simple_39
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = '0'
@@ -758,8 +759,8 @@ if __name__ == "__main__":
     dirpath = os.path.join(basepath, resultdir)
     createFolder(dirpath)
 
-    graph_train = Graph_simple_39()
-    graph_test = Graph_simple_39()
+    graph_train = Graph_jejusi()
+    graph_test = Graph_jejusi()
 
     action_size = len(graph_train.cs_info)
     state_size = action_size*2+4
@@ -784,7 +785,7 @@ if __name__ == "__main__":
             ept_score = 0
             state = env.reset()
             while not done:
-
+                print(env.pev.id, end=' ')
                 action = agent.get_action(state)
                 next_state, next_pev, reward, done = env.step(action)
                 agent.append_sample(state, action, reward, next_state, done)

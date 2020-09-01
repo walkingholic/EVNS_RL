@@ -8,6 +8,8 @@ import datetime
 # import gurobipy as gp
 # from gurobipy import GRB, Model, quicksum
 from Graph import Graph_simple_39
+from Graph import Graph_jejusi
+
 import test_algorithm as ta
 
 #
@@ -21,12 +23,12 @@ import test_algorithm as ta
 
 
 
-num_request = 100
+num_request = 150
 request_be_EV = []
 request_ing_EV = []
 charging = []
 
-graph = Graph_simple_39()
+graph = Graph_jejusi()
 arr_time = np.random.uniform(360, 1200, num_request)
 arr_time.sort()
 
