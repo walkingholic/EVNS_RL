@@ -198,7 +198,7 @@ def network_info_jejusi():
 
             if fnode in node_data.keys() and tnode in node_data.keys():
                 link_data[int(line[0])] = {'LINK_ID': int(line[0]), 'F_NODE': int(line[1]), 'T_NODE': int(line[2]),
-                                                       'MAX_SPD': float(line[3]), 'LENGTH': float(line[4])/1000, 'CUR_SPD': float(
+                                                       'MAX_SPD': float(line[3]), 'LENGTH': float(line[4]), 'CUR_SPD': float(
                                     line[5]), 'WEIGHT': float(line[6])}
 
 

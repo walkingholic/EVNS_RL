@@ -26,7 +26,7 @@ basepath = os.getcwd()
 dirpath = os.path.join(basepath, resultdir)
 ta.createFolder(dirpath)
 
-for i in range(2):
+for i in range(10):
 
     graph_test = Graph_jejusi()
     npev = 300
@@ -59,13 +59,35 @@ for i in range(2):
     for pev in EV_list_short_Greedy:
         tot_wt += pev.true_waitingtime
         tot_cost += pev.totalcost
-    print('==========EV_list_Greedy===================')
+    print('==========EV_list_short_Greedy===================')
     print('Avg. total waiting time: ', tot_wt / len(EV_list_short_Greedy))
     print('Total cost: ', tot_cost)
 
 
 
-    ta.sim_result_text_fleet(i, CS_list, graph_test, resultdir, EV_list_Greedy=EV_list_Greedy, EV_list_short_Greedy=EV_list_short_Greedy)
+    EV_list_shorttime_Greedy = copy.deepcopy(EV_list)
+    CS_list_shorttime_Greedy = copy.deepcopy(CS_list)
+    ta.get_greedy_shorttime_wt_fleet(EV_list_shorttime_Greedy, CS_list_shorttime_Greedy, graph_test)
+
+    tot_wt = 0
+    tot_cost = 0
+    for pev in EV_list_shorttime_Greedy:
+        tot_wt += pev.true_waitingtime
+        tot_cost += pev.totalcost
+    print('==========EV_list_Greedy===================')
+    print('Avg. total waiting time: ', tot_wt / len(EV_list_shorttime_Greedy))
+    print('Total cost: ', tot_cost)
+
+
+
+
+
+
+
+
+
+
+    ta.sim_result_text_fleet(i, CS_list, graph_test, resultdir, EV_list_Greedy=EV_list_Greedy, EV_list_short_Greedy=EV_list_short_Greedy, EV_list_shorttime_Greedy=EV_list_shorttime_Greedy)
 
 
 

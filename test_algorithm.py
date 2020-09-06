@@ -250,12 +250,24 @@ def update_envir_weight_shortestpath(cs, graph, sim_time):
     time_idx = int(sim_time / 5)
     for l_id in graph.link_data.keys():
         velo = graph.traffic_info[l_id][time_idx]
+
         # print(graph.link_data[l_id]['LENGTH'], velo)
         # croad = ECRate*graph.link_data[l_id]['LENGTH']*cs.TOU_price[int(time_idx/ 12)]
         # troad = graph.link_data[l_id]['LENGTH']/velo*UNITtimecost
         graph.link_data[l_id]['WEIGHT'] = graph.link_data[l_id]['LENGTH']
 
 
+def update_envir_weight_shortesttime(cs, graph, sim_time):
+    # print(int(sim_time / 5))
+
+    time_idx = int(sim_time / 5)
+    for l_id in graph.link_data.keys():
+        velo = graph.traffic_info[l_id][time_idx]
+
+        # print(graph.link_data[l_id]['LENGTH'], velo)
+        # croad = ECRate*graph.link_data[l_id]['LENGTH']*cs.TOU_price[int(time_idx/ 12)]
+        # troad = graph.link_data[l_id]['LENGTH']/velo*UNITtimecost
+        graph.link_data[l_id]['WEIGHT'] = graph.link_data[l_id]['LENGTH'] / velo
 
 
 def heuristic_astar(a, b):
@@ -423,6 +435,8 @@ def finishi_trip(pev, cp, graph):
 
 
 
+
+
 def get_feature_state_fleet(cur_time, pev, CS_list, graph, ncandi):
 
     evcango = pev.curr_SOC * pev.maxBCAPA / pev.ECRate
@@ -479,6 +493,62 @@ def get_feature_state_fleet(cur_time, pev, CS_list, graph, ncandi):
             # print('actions: ',cs.id, req_soc)
 
     return info
+def get_greedy_time_cost_fleet(request_be_EV, CS_list, graph):
+
+
+    for pev in request_be_EV:
+
+        # charging_energy = pev.maxBCAPA * (pev.req_SOC - pev.curr_SOC)
+        # charging_duration = (charging_energy / (60 * pev.charging_effi))
+        # pev.ept_charging_duration = charging_duration * 60
+
+        print('=====================================================================')
+        print('be ID:{0:3} S:{1:3} D:{2:3} CurSOC:{3:0.2f} ReqSOC:{4:0.2f} Tstart:{5:0.2f} Tarr:{6:0.2f}'
+              .format(pev.id, pev.source, pev.destination, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime))
+        candi = []
+        candi = get_feature_state_fleet(pev.t_start, pev, CS_list, graph, 0)
+
+        # for cs, _, _, _, _, _, _, _, _, _, _, eptWT, ept_charduration, _, _, ept_arrtime in candi:
+        #     print('ID: {0:3}  eptWT: {1:.2f}   eptCharduration: {3:.2f}   Len_reserv: {2:.2f}'.format(cs.id, eptWT, len(
+        #         cs.reserve_ev), ept_charduration))
+
+        candi.sort(key=lambda e: e[1])
+
+        (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance, ept_front_d_time,
+         ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
+         ept_home_charging_cost,
+         ept_arrtime) = candi[0]
+
+        pev.front_path = front_path
+        pev.rear_path = rear_path
+        pev.path = front_path + rear_path[1:]
+        pev.ept_arrtime = ept_arrtime
+        pev.true_arrtime = get_true_arrtime(pev, cs, graph)
+        pev.ept_waitingtime = ept_WT
+        pev.ept_charging_duration = ept_charduration
+        pev.cs = cs
+        pev.cschargingprice = cs.price[int(pev.cschargingstarttime / 5)]
+        cs.recieve_request(pev)
+
+    for cs in CS_list:
+        cs.sim_finish(graph)
+        print(cs.id, end=', ')
+    print('\n=====================================================================')
+
+    tot_wt = 0
+    tot_cost = 0
+    for pev in request_be_EV:
+        # print(
+        #     'result,  ID: {0:3},  CSID: {1:3},  CurSOC: {2:.2f},  ReqSOC: {3:.2f},  Tstart: {4:5.2f},  EptTarr: {5:5.2f},  TruTarr: {10:5.2f},  diffTarr: {11:5.2f},  WT: {6:5.2f},  eptWT: {8:5.2f},  diffWT: {9:5.2f},  ChaStart: {7:5.2f},  finTime: {12:5.2f}'
+        #     .format(pev.id, pev.cs.id, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime, pev.true_waitingtime,
+        #             pev.cschargingstarttime, pev.ept_waitingtime, pev.time_diff_WT, pev.true_arrtime,
+        #             pev.true_arrtime - pev.ept_arrtime, pev.curr_time))
+        tot_wt += pev.true_waitingtime
+        tot_cost += pev.totalcost
+
+    print('Avg. total waiting time: ', tot_wt / len(request_be_EV))
+    print('Total cost: ', tot_cost)
+
 
 
 def get_feature_state_shortest_fleet(cur_time, pev, CS_list, graph, ncandi):
@@ -537,68 +607,6 @@ def get_feature_state_shortest_fleet(cur_time, pev, CS_list, graph, ncandi):
             # print('actions: ',cs.id, req_soc)
 
     return info
-
-
-
-
-
-def get_greedy_time_cost_fleet(request_be_EV, CS_list, graph):
-
-
-    for pev in request_be_EV:
-
-        # charging_energy = pev.maxBCAPA * (pev.req_SOC - pev.curr_SOC)
-        # charging_duration = (charging_energy / (60 * pev.charging_effi))
-        # pev.ept_charging_duration = charging_duration * 60
-
-        print('=====================================================================')
-        print('be ID:{0:3} S:{1:3} D:{2:3} CurSOC:{3:0.2f} ReqSOC:{4:0.2f} Tstart:{5:0.2f} Tarr:{6:0.2f}'
-              .format(pev.id, pev.source, pev.destination, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime))
-        candi = []
-        candi = get_feature_state_fleet(pev.t_start, pev, CS_list, graph, 0)
-
-        # for cs, _, _, _, _, _, _, _, _, _, _, eptWT, ept_charduration, _, _, ept_arrtime in candi:
-        #     print('ID: {0:3}  eptWT: {1:.2f}   eptCharduration: {3:.2f}   Len_reserv: {2:.2f}'.format(cs.id, eptWT, len(
-        #         cs.reserve_ev), ept_charduration))
-
-        candi.sort(key=lambda e: e[1])
-
-        (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance, ept_front_d_time,
-         ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
-         ept_home_charging_cost,
-         ept_arrtime) = candi[0]
-
-        pev.front_path = front_path
-        pev.rear_path = rear_path
-        pev.path = front_path + rear_path[1:]
-        pev.ept_arrtime = ept_arrtime
-        pev.true_arrtime = get_true_arrtime(pev, cs, graph)
-        pev.ept_waitingtime = ept_WT
-        pev.ept_charging_duration = ept_charduration
-        pev.cs = cs
-        pev.cschargingprice = cs.price[int(pev.cschargingstarttime / 5)]
-        cs.recieve_request(pev)
-
-    for cs in CS_list:
-        cs.sim_finish(graph)
-        print(cs.id, end=', ')
-    print('\n=====================================================================')
-
-    tot_wt = 0
-    tot_cost = 0
-    for pev in request_be_EV:
-        # print(
-        #     'result,  ID: {0:3},  CSID: {1:3},  CurSOC: {2:.2f},  ReqSOC: {3:.2f},  Tstart: {4:5.2f},  EptTarr: {5:5.2f},  TruTarr: {10:5.2f},  diffTarr: {11:5.2f},  WT: {6:5.2f},  eptWT: {8:5.2f},  diffWT: {9:5.2f},  ChaStart: {7:5.2f},  finTime: {12:5.2f}'
-        #     .format(pev.id, pev.cs.id, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime, pev.true_waitingtime,
-        #             pev.cschargingstarttime, pev.ept_waitingtime, pev.time_diff_WT, pev.true_arrtime,
-        #             pev.true_arrtime - pev.ept_arrtime, pev.curr_time))
-        tot_wt += pev.true_waitingtime
-        tot_cost += pev.totalcost
-
-    print('Avg. total waiting time: ', tot_wt / len(request_be_EV))
-    print('Total cost: ', tot_cost)
-
-
 def get_greedy_shortest_fleet(request_be_EV, CS_list, graph):
 
 
@@ -656,16 +664,114 @@ def get_greedy_shortest_fleet(request_be_EV, CS_list, graph):
     print('Total cost: ', tot_cost)
 
 
+def get_feature_state_shorttime_wt_fleet(cur_time, pev, CS_list, graph, ncandi):
+    evcango = pev.curr_SOC * pev.maxBCAPA / pev.ECRate
+    start = pev.curr_location
+    end = pev.destination
+    info = []
 
+    for cs in CS_list:
+        update_envir_weight_shortesttime(cs, graph, cur_time)
+        evcs_id = cs.id
+        came_from, cost_so_far = dijkstra_search(graph, start, evcs_id)
+        front_path = reconstruct_path(came_from, start, evcs_id)
+        front_path_distance = graph.get_path_distance(front_path)
+        came_from, cost_so_far = dijkstra_search(graph, evcs_id, end)
+        rear_path = reconstruct_path(came_from, evcs_id, end)
+        rear_path_distance = graph.get_path_distance(rear_path)
+        final_path = front_path + rear_path[1:]
+        total_distance = graph.get_path_distance(final_path)
 
+        fpath_weight = graph.get_path_weight(front_path)
+        rpath_weight = graph.get_path_weight(rear_path)
 
+        rear_consump_energy = rear_path_distance * pev.ECRate
+        front_d_time = graph.get_path_drivingtime(front_path, int(cur_time / 5)) * 60
+        rear_d_time = graph.get_path_drivingtime(rear_path, int(cur_time / 5)) * 60
+        remainenergy = pev.maxBCAPA * pev.init_SOC - front_path_distance * pev.ECRate
 
+        ept_arrtime = cur_time + front_d_time
+        # print(cur_time, ept_arrtime)
 
+        driving_cost = graph.get_path_weight(final_path)
+        charging_energy = pev.maxBCAPA * pev.req_SOC - remainenergy
 
+        if charging_energy <= 0:
+            print('charging_energy error')
+            input()
 
+        chargingprice = cs.price[int(cur_time / 5)]
+        ept_charging_duration = (charging_energy / (cs.chargingpower * pev.charging_effi)) * 60
 
+        cs_charging_cost = charging_energy * chargingprice + ept_charging_duration * UNITtimecost
 
+        athome_remainE = (pev.maxBCAPA * pev.req_SOC - rear_consump_energy)
+        athome_soc = athome_remainE / pev.maxBCAPA
+        home_charging_cost = (pev.maxBCAPA * pev.final_soc - athome_remainE) * cs.TOU_price[int(cur_time / 60)]
 
+        ept_WT = cs.get_ept_WT(ept_arrtime, cur_time, graph)
+
+        weight = graph.get_path_weight(final_path)*60 + ept_WT
+        info.append((cs, weight, driving_cost, front_path, rear_path, front_path_distance, rear_path_distance,
+                     front_d_time, rear_d_time, fpath_weight, rpath_weight, ept_WT,
+                     ept_charging_duration, cs_charging_cost, home_charging_cost, ept_arrtime))
+
+        # print('actions: ',cs.id, req_soc)
+
+    return info
+
+def get_greedy_shorttime_wt_fleet(request_be_EV, CS_list, graph):
+    for pev in request_be_EV:
+        # charging_energy = pev.maxBCAPA * (pev.req_SOC - pev.curr_SOC)
+        # charging_duration = (charging_energy / (60 * pev.charging_effi))
+        # pev.ept_charging_duration = charging_duration * 60
+
+        print('=====================================================================')
+        print('be ID:{0:3} S:{1:3} D:{2:3} CurSOC:{3:0.2f} ReqSOC:{4:0.2f} Tstart:{5:0.2f} Tarr:{6:0.2f}'
+              .format(pev.id, pev.source, pev.destination, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime))
+        candi = []
+        candi = get_feature_state_shorttime_wt_fleet(pev.t_start, pev, CS_list, graph, 0)
+
+        # for cs, _, _, _, _, _, _, _, _, _, _, eptWT, ept_charduration, _, _, ept_arrtime in candi:
+        #     print('ID: {0:3}  eptWT: {1:.2f}   eptCharduration: {3:.2f}   Len_reserv: {2:.2f}'.format(cs.id, eptWT, len(
+        #         cs.reserve_ev), ept_charduration))
+
+        candi.sort(key=lambda e: e[1])
+
+        (cs, weight, ept_driving_cost, front_path, rear_path, front_path_distance, rear_path_distance, ept_front_d_time,
+         ept_rear_d_time, fpath_weight, rpath_weight, ept_WT, ept_charduration, ept_cs_charging_cost,
+         ept_home_charging_cost,
+         ept_arrtime) = candi[0]
+
+        pev.front_path = front_path
+        pev.rear_path = rear_path
+        pev.path = front_path + rear_path[1:]
+        pev.ept_arrtime = ept_arrtime
+        pev.true_arrtime = get_true_arrtime(pev, cs, graph)
+        pev.ept_waitingtime = ept_WT
+        pev.ept_charging_duration = ept_charduration
+        pev.cs = cs
+        pev.cschargingprice = cs.price[int(pev.cschargingstarttime / 5)]
+        cs.recieve_request(pev)
+
+    for cs in CS_list:
+        cs.sim_finish(graph)
+        print(cs.id, end=', ')
+    print('\n=====================================================================')
+
+    tot_wt = 0
+    tot_cost = 0
+    for pev in request_be_EV:
+        # print(
+        #     'result,  ID: {0:3},  CSID: {1:3},  CurSOC: {2:.2f},  ReqSOC: {3:.2f},  Tstart: {4:5.2f},  EptTarr: {5:5.2f},  TruTarr: {10:5.2f},  diffTarr: {11:5.2f},  WT: {6:5.2f},  eptWT: {8:5.2f},  diffWT: {9:5.2f},  ChaStart: {7:5.2f},  finTime: {12:5.2f}'
+        #     .format(pev.id, pev.cs.id, pev.curr_SOC, pev.req_SOC, pev.t_start, pev.ept_arrtime, pev.true_waitingtime,
+        #             pev.cschargingstarttime, pev.ept_waitingtime, pev.time_diff_WT, pev.true_arrtime,
+        #             pev.true_arrtime - pev.ept_arrtime, pev.curr_time))
+        tot_wt += pev.true_waitingtime
+        tot_cost += pev.totalcost
+
+    print('Avg. total waiting time: ', tot_wt / len(request_be_EV))
+    print('Total cost: ', tot_cost)
 
 
 #
@@ -2462,36 +2568,36 @@ def sim_result_text_fleet(nth, CS_list, graph, resultdir, **results):
 
 
 
-
-    fw.write('\ncs driving distance\n')
-    for key, EVlist in results.items():
-        r1_list = []
-        for ev in EVlist:
-            r1_list.append(ev.csdistance)
-        fw.write(key + '\t')
-        for value in r1_list:
-            fw.write(str(value) + '\t')
-        fw.write('\n')
-
-    fw.write('\ncs driving time\n')
-    for key, EVlist in results.items():
-        r1_list = []
-        for ev in EVlist:
-            r1_list.append(ev.csdrivingtime)
-        fw.write(key + '\t')
-        for value in r1_list:
-            fw.write(str(value) + '\t')
-        fw.write('\n')
-
-    fw.write('\ncs charging energy\n')
-    for key, EVlist in results.items():
-        r1_list = []
-        for ev in EVlist:
-            r1_list.append(ev.cscharingenergy)
-        fw.write(key + '\t')
-        for value in r1_list:
-            fw.write(str(value) + '\t')
-        fw.write('\n')
+    #
+    # fw.write('\ncs driving distance\n')
+    # for key, EVlist in results.items():
+    #     r1_list = []
+    #     for ev in EVlist:
+    #         r1_list.append(ev.csdistance)
+    #     fw.write(key + '\t')
+    #     for value in r1_list:
+    #         fw.write(str(value) + '\t')
+    #     fw.write('\n')
+    #
+    # fw.write('\ncs driving time\n')
+    # for key, EVlist in results.items():
+    #     r1_list = []
+    #     for ev in EVlist:
+    #         r1_list.append(ev.csdrivingtime)
+    #     fw.write(key + '\t')
+    #     for value in r1_list:
+    #         fw.write(str(value) + '\t')
+    #     fw.write('\n')
+    #
+    # fw.write('\ncs charging energy\n')
+    # for key, EVlist in results.items():
+    #     r1_list = []
+    #     for ev in EVlist:
+    #         r1_list.append(ev.cscharingenergy)
+    #     fw.write(key + '\t')
+    #     for value in r1_list:
+    #         fw.write(str(value) + '\t')
+    #     fw.write('\n')
 
     fw.write('\ncs charging cost\n')
     for key, EVlist in results.items():
@@ -2507,7 +2613,7 @@ def sim_result_text_fleet(nth, CS_list, graph, resultdir, **results):
     for key, EVlist in results.items():
         r1_list = []
         for ev in EVlist:
-            r1_list.append(ev.cschargingwaitingtime)
+            r1_list.append(ev.true_waitingtime)
         fw.write(key + '\t')
         for value in r1_list:
             fw.write(str(value) + '\t')
@@ -2517,7 +2623,7 @@ def sim_result_text_fleet(nth, CS_list, graph, resultdir, **results):
     for key, EVlist in results.items():
         r1_list = []
         for ev in EVlist:
-            r1_list.append(ev.cschargingtime)
+            r1_list.append(ev.true_charging_duration)
         fw.write(key + '\t')
         for value in r1_list:
             fw.write(str(value) + '\t')
